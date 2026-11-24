@@ -1,6 +1,6 @@
 MODEL ?= gemma2:9b
 
-.PHONY: setup api ui run test lint eval live-eval
+.PHONY: setup api ui run start test lint eval live-eval
 
 setup:  ## Install dependencies and pull the local LLM
 	uv sync
@@ -14,6 +14,9 @@ ui:  ## Start the Streamlit UI
 
 run:  ## Start API and UI together (Ctrl+C stops both)
 	$(MAKE) -j2 api ui
+
+start:  ## Check Ollama, then run API + UI
+	bash scripts/run_local.sh
 
 test:  ## Unit tests (no network, no Ollama, no real embedder)
 	uv run pytest

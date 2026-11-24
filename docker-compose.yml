@@ -1,0 +1,62 @@
+# Runs the API and the Streamlit UI from one image. Ollama is NOT in compose: it runs on
+# the host (macOS Docker has no GPU access, so the LLM stays native). See scripts/run_local.sh.
+
+x-app: &app
+  build: .
+  image: study-assistant:local
+
+services:
+  api:
+    <<: *app
+    command:
+      - uvicorn
+      - study_assistant.api.main:create_app
+      - --factory
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+    environment:
+      STUDY_OLLAMA_HOST: http://host.docker.internal:11434
+    extra_hosts:
+      # Docker Desktop (macOS) provides host.docker.internal already; Linux needs this line.
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - hf-cache:/app/.cache/huggingface
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).status == 200 else 1)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      # The embedding model loads before the API listens; the first start also downloads it.
+      start_period: 120s
+
+  ui:
+    <<: *app
+    command:
+      - streamlit
+      - run
+      - ui/app.py
+      - --server.port
+      - "8501"
+      - --server.address
+      - 0.0.0.0
+      - --server.headless
+      - "true"
+    environment:
+      STUDY_API_URL: http://api:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  hf-cache:
