@@ -18,13 +18,24 @@ from study_assistant.models import (
     QuizQuestion,
     Verdict,
 )
-from study_assistant.prompts import GRADE_SYSTEM, format_sources
+from study_assistant.prompts import GRADE_SYSTEM, detect_language, format_sources
 from study_assistant.store import VectorStore
 
 MAX_GRADE_CHUNKS = 4
 CORRECT_THRESHOLD = 80
 PARTIAL_THRESHOLD = 40
-BLANK_FEEDBACK = "No answer given."
+FIXED_FEEDBACK: dict[str, dict[str, str]] = {
+    "English": {
+        "blank": "No answer given.",
+        "mc_correct": "Correct! The answer is: {x}",
+        "mc_wrong": "Not quite. The correct answer is: {x}",
+    },
+    "Turkish": {
+        "blank": "Cevap verilmedi.",
+        "mc_correct": "Doğru! Cevap: {x}",
+        "mc_wrong": "Tam değil. Doğru cevap: {x}",
+    },
+}
 
 
 def verdict_for(score: int) -> Verdict:
@@ -58,13 +69,20 @@ def grade_answer(
 
 
 def build_grade_prompt(question: QuizQuestion, chunks: list[Chunk], answer: str) -> str:
-    """User message for the grader: numbered sources, then question, reference and answer."""
+    """User message for the grader: sources, question, reference, answer, feedback language."""
+    language = detect_language(answer, question.question, question.reference_answer)
     return (
         f"{format_sources(chunks[:MAX_GRADE_CHUNKS])}\n\n"
         f"Question: {question.question}\n"
         f"Reference answer: {question.reference_answer}\n"
-        f"Student answer: {answer}"
+        f"Student answer: {answer}\n\n"
+        f"Write the feedback in {language}."
     )
+
+
+def _fixed_feedback(question: QuizQuestion) -> dict[str, str]:
+    """Fixed (non-LLM) feedback strings in the quiz's language."""
+    return FIXED_FEEDBACK[detect_language(question.question, question.reference_answer)]
 
 
 def _find_question(quiz: Quiz, question_id: str) -> QuizQuestion:
@@ -91,12 +109,13 @@ def _grade_multiple_choice(
         raise ValueError(f"selected_option must be 0..{len(options) - 1}")
     correct = question.correct_option
     correct_text = options[correct] if correct is not None else ""
+    strings = _fixed_feedback(question)
     if selected_option == correct:
         score = 100
-        feedback = f"Correct! The answer is: {correct_text}"
+        feedback = strings["mc_correct"].format(x=correct_text)
     else:
         score = 0
-        feedback = f"Not quite. The correct answer is: {correct_text}"
+        feedback = strings["mc_wrong"].format(x=correct_text)
     return Grade(
         score=score,
         verdict=verdict_for(score),
@@ -120,7 +139,7 @@ def _grade_open_ended(
         return Grade(
             score=0,
             verdict="incorrect",
-            feedback=BLANK_FEEDBACK,
+            feedback=_fixed_feedback(question)["blank"],
             citations=citations,
             reference_answer=question.reference_answer,
         )

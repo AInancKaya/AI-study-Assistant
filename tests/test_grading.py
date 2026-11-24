@@ -7,7 +7,7 @@ import pytest
 
 from study_assistant.grading import build_grade_prompt, grade_answer, verdict_for
 from study_assistant.models import Chunk, Citation, LLMGrade, Quiz, QuizQuestion
-from study_assistant.prompts import GRADE_SYSTEM, format_sources
+from study_assistant.prompts import GRADE_SYSTEM, detect_language, format_sources
 from study_assistant.store import VectorStore
 from tests.fakes import FakeLLM, HashEmbedder
 
@@ -77,14 +77,14 @@ def test_mc_correct_and_wrong_no_llm(quiz: Quiz, store: VectorStore) -> None:
 
     assert right.score == 100
     assert right.verdict == "correct"
-    assert right.feedback == "Correct! The answer is: Kloroplast"
+    assert right.feedback == "Doğru! Cevap: Kloroplast"
     assert right.correct_option == 1
     assert right.reference_answer == "Kloroplastta gerçekleşir."
     assert right.citations == [Citation(doc_id=DOC_ID, filename=FILENAME, page=1)]
 
     assert wrong.score == 0
     assert wrong.verdict == "incorrect"
-    assert wrong.feedback == "Not quite. The correct answer is: Kloroplast"
+    assert wrong.feedback == "Tam değil. Doğru cevap: Kloroplast"
     assert wrong.correct_option == 1
     assert llm.calls == []
 
@@ -151,7 +151,7 @@ def test_open_blank_answer_scores_zero_no_llm(
 
     assert grade.score == 0
     assert grade.verdict == "incorrect"
-    assert grade.feedback == "No answer given."
+    assert grade.feedback == "Cevap verilmedi."
     assert grade.reference_answer == "Glikozun enerjiye dönüştürülmesidir."
     assert llm.calls == []
 
@@ -180,5 +180,103 @@ def test_build_grade_prompt_uses_at_most_four_sources(store: VectorStore) -> Non
         f"{format_sources(chunks[:4])}\n\n"
         "Question: Hücre solunumunu açıklayın.\n"
         "Reference answer: Glikozun enerjiye dönüştürülmesidir.\n"
-        "Student answer: cevap"
+        "Student answer: cevap\n\n"
+        "Write the feedback in Turkish."
     )
+
+
+def _english_quiz() -> Quiz:
+    mc = QuizQuestion(
+        id="e1",
+        type="multiple_choice",
+        question="Where does photosynthesis take place?",
+        options=["Mitochondria", "Chloroplast", "Nucleus", "Ribosome"],
+        correct_option=1,
+        reference_answer="It takes place in the chloroplast.",
+        source_pages=[1],
+    )
+    open_q = QuizQuestion(
+        id="e2",
+        type="open_ended",
+        question="Explain cellular respiration.",
+        options=None,
+        correct_option=None,
+        reference_answer="It is the conversion of glucose into energy.",
+        source_pages=[2],
+    )
+    return Quiz(
+        id="quiz2",
+        doc_id=DOC_ID,
+        filename=FILENAME,
+        created_at=datetime(2026, 11, 24, tzinfo=UTC),
+        questions=[mc, open_q],
+    )
+
+
+def test_mc_feedback_on_english_quiz_is_english(store: VectorStore) -> None:
+    quiz = _english_quiz()
+
+    right = grade_answer(quiz, "e1", store, FakeLLM([]), selected_option=1)
+    wrong = grade_answer(quiz, "e1", store, FakeLLM([]), selected_option=0)
+    blank = grade_answer(quiz, "e2", store, FakeLLM([]), answer=" ")
+
+    assert right.feedback == "Correct! The answer is: Chloroplast"
+    assert wrong.feedback == "Not quite. The correct answer is: Chloroplast"
+    assert blank.feedback == "No answer given."
+
+
+def test_grade_prompt_asks_for_turkish_feedback_on_turkish_answer(
+    quiz: Quiz, store: VectorStore
+) -> None:
+    llm = FakeLLM([LLMGrade(score=70, feedback="İyi.")])
+
+    grade_answer(quiz, "q2", store, llm, answer="Glikoz enerjiye dönüşür.")
+
+    _, user, _ = llm.calls[0]
+    assert user.endswith("Write the feedback in Turkish.")
+
+
+def test_grade_prompt_english_answer_to_turkish_question_gets_english(
+    quiz: Quiz, store: VectorStore
+) -> None:
+    llm = FakeLLM([LLMGrade(score=70, feedback="Good.")])
+
+    grade_answer(quiz, "q2", store, llm, answer="Glucose is turned into energy by the cell.")
+
+    _, user, _ = llm.calls[0]
+    assert user.endswith("Write the feedback in English.")
+
+
+def test_grade_prompt_ascii_only_turkish_answer_gets_turkish(
+    quiz: Quiz, store: VectorStore
+) -> None:
+    llm = FakeLLM([LLMGrade(score=10, feedback="Yanlış.")])
+
+    grade_answer(quiz, "q2", store, llm, answer="bu dogru degil")
+
+    _, user, _ = llm.calls[0]
+    assert user.endswith("Write the feedback in Turkish.")
+
+
+def test_grade_system_names_language_from_last_line() -> None:
+    assert "written in the language named on the last line of the user message" in GRADE_SYSTEM
+
+
+@pytest.mark.parametrize(
+    ("texts", "expected"),
+    [
+        (("Hücre solunumu",), "Turkish"),
+        (("bu dogru degil",), "Turkish"),
+        (("Bu Cunku icin",), "Turkish"),
+        (("ISTANBUL İL",), "Turkish"),
+        (("The cell is alive",), "English"),
+        (("glucose energy", "Hücre"), "Turkish"),
+        (("glucose energy", "photosynthesis"), "English"),
+        (("", "it works"), "English"),
+        (("12345", "ve sonra"), "Turkish"),
+        (("the cell", "Hücre"), "English"),
+        ((), "English"),
+    ],
+)
+def test_detect_language(texts: tuple[str, ...], expected: str) -> None:
+    assert detect_language(*texts) == expected

@@ -6,7 +6,34 @@ rules, and the JSON shape is enforced separately by the schema passed to ``compl
 
 from __future__ import annotations
 
+import re
+
 from study_assistant.models import Chunk
+
+TURKISH_CHARS = frozenset("çğıöşüÇĞİÖŞÜ")
+TURKISH_WORDS = frozenset(
+    {
+        "ve",
+        "bir",
+        "bu",
+        "için",
+        "ile",
+        "değil",
+        "olarak",
+        "çünkü",
+        "daha",
+        "gibi",
+        "veya",
+        "olan",
+        "nedir",
+        # ASCII-folded spellings typed without Turkish keyboard support.
+        "icin",
+        "degil",
+        "cunku",
+    }
+)
+ENGLISH_WORDS = frozenset({"the", "and", "is", "of", "to", "because", "it", "a"})
+_WORD = re.compile(r"\w+")
 
 ANSWER_SYSTEM = """You are a study assistant. You answer a student's question using ONLY \
 the numbered sources from the student's lecture notes given in the user message.
@@ -55,8 +82,8 @@ Rules:
 - "score" is an integer from 0 to 100: 100 = fully correct and complete, \
 0 = wrong or empty. Give partial credit for answers that are partly correct.
 - Judge the meaning, not the wording. Ignore spelling and grammar mistakes.
-- "feedback" is 1-3 sentences in the same language as the student's answer: say what \
-was right and what was missing or wrong.
+- "feedback" is 1-3 sentences, written in the language named on the last line of the \
+user message: say what was right and what was missing or wrong.
 
 Reply with JSON only: {"score": integer, "feedback": string}"""
 
@@ -71,3 +98,21 @@ def format_sources(chunks: list[Chunk]) -> str:
         f"[{n}] ({chunk.filename}, s. {chunk.page})\n{chunk.text}"
         for n, chunk in enumerate(chunks, start=1)
     )
+
+
+def detect_language(*texts: str) -> str:
+    """Guess "Turkish" or "English" from the first text that gives a clear signal.
+
+    A text is Turkish if it has a Turkish letter or a common Turkish word (also in
+    ASCII-folded form, e.g. "degil"), English if it has a common English word; texts
+    with no signal are skipped. Defaults to "English".
+    """
+    for text in texts:
+        if TURKISH_CHARS.intersection(text):
+            return "Turkish"
+        words = {word.casefold() for word in _WORD.findall(text)}
+        if words & TURKISH_WORDS:
+            return "Turkish"
+        if words & ENGLISH_WORDS:
+            return "English"
+    return "English"
