@@ -5,23 +5,46 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .coverage
+coverage.xml
+.mypy_cache/
 htmlcov/
 dist/
 build/
 *.egg-info/
 
-# Secrets
+# Secrets — never commit keys, tokens or local env files
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+credentials*.json
+secrets*.json
+*.secret
+.netrc
 
-# Local data
-data/chroma/
-data/uploads/
-data/quizzes.db
+# Local data (uploaded notes, vector DB, quizzes) — personal, stays on this machine
+data/
+*.db
+*.sqlite
+*.sqlite3
+chroma/
+*.log
+.cache/
 
 # OS / editors
 .DS_Store
 .idea/
 .vscode/
+*.swp
+Thumbs.db
+
+# Local AI-assistant settings
+.claude/settings.local.json
 
 # Agent workspaces
 .superpowers/
