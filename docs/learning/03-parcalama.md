@@ -43,6 +43,7 @@ Küçük parçalar üzerinde arama yaparsak, sorunun cevabını içeren kısmı 
 **Örtüşme (`overlap`) ödünleşimi:** Bir cümle iki chunk'ın sınırına denk gelirse, sınırın
 iki yanındaki bağlam ayrı ayrı eksik kalır. 200 karakterlik örtüşme bu kesikleri azaltır.
 Bedeli: depolama ve embedding maliyeti biraz artar, aynı metin iki kez gelir.
+`overlap = 0` hiç örtüşme olmadığı anlamına gelir: chunk'lar birbirinin metnini tekrar etmez.
 
 **Sayfa metadatası neden önemli?** Kullanıcı "cevap nerede?" diye sorduğunda, "3. sayfa,
 notlar.pdf" gibi bir atıf göstermek istiyoruz. Chunk'ı üreten sayfa numarası ve dosya
@@ -90,7 +91,7 @@ embedding ve LLM girdisi için sert üst sınır önemlidir.
 - **Chunk:** Aramada ve embedding'de kullanılan, sayfa metninin bitişik bir parçası.
 - **Örtüşme (overlap):** Ardışık iki chunk'ın paylaştığı metin. Sınırdaki bilgiyi korur.
 - **Hiyerarşik bölme:** Paragraf → cümle → karakter sırasıyla, anlamı en çok koruyan
-  sınırdan başlayıp gerekirse daha kaba olmayan bir sınıra inmek.
+  sınırdan başlayıp gerekirse daha ince bir sınıra inmek.
 - **Sabit pencere (hard split):** Doğal sınır yoksa karakter sayısına göre bölme. Cümleyi
   ortadan keser, bu yüzden yalnızca son çare olarak kullanılır.
 - **Sayfa atıfı (citation):** Chunk'ın hangi sayfadan geldiği bilgisi. Cevapların güvenilir

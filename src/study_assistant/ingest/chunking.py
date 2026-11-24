@@ -94,10 +94,13 @@ def _pack(pieces: Sequence[_Piece], size: int, overlap: int) -> list[str]:
     """Greedily fill chunks with pieces, carrying an overlap seed into each new chunk."""
     texts: list[str] = []
     current: list[_Piece] = []
+    length = 0  # running len(_render(current)), so each piece is O(1) to place
     for piece in pieces:
-        if current and _length(current) + len(piece.sep) + len(piece.text) > size:
+        if current and length + len(piece.sep) + len(piece.text) > size:
             texts.append(_render(current))
             current = _seed(current, piece, size, overlap)
+            length = _length(current)
+        length = length + len(piece.sep) + len(piece.text) if current else len(piece.text)
         current.append(piece)
     if current:
         texts.append(_render(current))
@@ -111,6 +114,8 @@ def _seed(current: Sequence[_Piece], nxt: _Piece, size: int, overlap: int) -> li
     to the last characters of the closed chunk. Either way the seed leaves room for
     ``nxt``, so no chunk exceeds ``size``.
     """
+    if overlap == 0:
+        return []
     room = size - len(nxt.sep) - len(nxt.text)
     sentences = _trailing_sentences(current, overlap, room)
     if sentences:

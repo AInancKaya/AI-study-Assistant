@@ -76,9 +76,35 @@ def test_overlap_between_neighbours():
 
 
 def test_single_huge_sentence_hard_split():
-    chunks = chunk_pages([page(1, "a" * 3000)], 1000, 200)
+    text = "".join(chr(ord("a") + i % 26) for i in range(3000))  # no spaces or punctuation
+    chunks = chunk_pages([page(1, text)], 1000, 200)
     assert len(chunks) >= 3
     assert all(len(c.text) <= 1000 for c in chunks)
+    # every 50-character window of the input survives in some chunk
+    for start in range(0, len(text) - 50 + 1, 50):
+        assert any(text[start : start + 50] in c.text for c in chunks)
+    # neighbouring windows still share the configured overlap
+    for before, after in zip(chunks, chunks[1:], strict=False):
+        assert _shared_overlap(before.text, after.text) >= 200
+
+
+def test_overlap_zero_means_no_shared_text():
+    sentences = [f"Cümle numarası {i} burada biter." for i in range(30)]
+    chunks = chunk_pages([page(1, " ".join(sentences))], 200, 0)
+    assert all(len(c.text) <= 200 for c in chunks)
+    for before, after in zip(chunks, chunks[1:], strict=False):
+        before_sentences = set(re.split(r"(?<=[.!?…])\s+", before.text))
+        after_sentences = set(re.split(r"(?<=[.!?…])\s+", after.text))
+        assert before_sentences.isdisjoint(after_sentences)
+
+
+def test_paragraphs_split_before_sentences():
+    text = "Birinci paragraf. İkinci cümle.\n\nİkinci paragraf başı."
+    chunks = chunk_pages([page(1, text)], size=len("Birinci paragraf. İkinci cümle."), overlap=0)
+    assert [c.text for c in chunks] == [
+        "Birinci paragraf. İkinci cümle.",
+        "İkinci paragraf başı.",
+    ]
 
 
 def test_turkish_text_preserved():
