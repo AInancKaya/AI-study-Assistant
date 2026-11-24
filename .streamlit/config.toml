@@ -1,0 +1,12 @@
+# Streamlit settings for local use: no telemetry, UI bound to this machine only.
+# docker-compose.yml overrides the address with --server.address 0.0.0.0 inside the container.
+
+[browser]
+gatherUsageStats = false
+
+[server]
+address = "127.0.0.1"
+maxUploadSize = 50
+
+[client]
+toolbarMode = "minimal"

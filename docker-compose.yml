@@ -22,9 +22,10 @@ services:
       # Docker Desktop (macOS) provides host.docker.internal already; Linux needs this line.
       - "host.docker.internal:host-gateway"
     ports:
-      - "8000:8000"
+      # Published on the host's loopback only: nothing else on the network can reach it.
+      - "127.0.0.1:8000:8000"
     volumes:
-      - ./data:/app/data
+      - study-data:/app/data
       - hf-cache:/app/.cache/huggingface
     healthcheck:
       test:
@@ -35,7 +36,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
-      # The embedding model loads before the API listens; the first start also downloads it.
+      # The embedding model loads on the first upload or question (first start also
+      # downloads it); start_period covers a slow container start.
       start_period: 120s
 
   ui:
@@ -53,10 +55,11 @@ services:
     environment:
       STUDY_API_URL: http://api:8000
     ports:
-      - "8501:8501"
+      - "127.0.0.1:8501:8501"
     depends_on:
       api:
         condition: service_healthy
 
 volumes:
+  study-data:
   hf-cache:

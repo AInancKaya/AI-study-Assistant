@@ -18,6 +18,7 @@ RUN uv sync --locked --no-dev --no-install-project
 COPY README.md LICENSE ./
 COPY src ./src
 COPY ui ./ui
+COPY .streamlit ./.streamlit
 RUN uv sync --locked --no-dev
 
 

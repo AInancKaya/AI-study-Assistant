@@ -40,15 +40,8 @@ check_ollama() {
 }
 
 check_model() {
-  local name="$MODEL"
-  # A bare name such as "gemma2" means "gemma2:latest" in `ollama list`.
-  case "$name" in
-    *:*) ;;
-    *) name="$name:latest" ;;
-  esac
-  local names
-  names="$(ollama list 2>/dev/null | awk 'NR > 1 { print $1 }')" || true
-  if ! grep -qxF "$name" <<<"$names"; then
+  # /api/show answers 404 unless the model is pulled (a bare name means ":latest").
+  if ! curl -sf "$OLLAMA_HOST/api/show" -d "{\"model\":\"$MODEL\"}" >/dev/null; then
     echo "Model $MODEL is not pulled. Run: ollama pull $MODEL"
     exit 1
   fi
