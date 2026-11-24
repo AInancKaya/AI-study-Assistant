@@ -29,6 +29,8 @@ secrets*.json
 
 # Local data (uploaded notes, vector DB, quizzes) — personal, stays on this machine
 data/
+# ...except the committed evaluation set
+!evals/data/
 *.db
 *.sqlite
 *.sqlite3

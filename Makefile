@@ -22,8 +22,10 @@ lint:  ## Lint and format check
 	uv run ruff check .
 	uv run ruff format --check .
 
-eval:  ## Offline retrieval eval (real embedder, no LLM)
+eval:  ## Offline retrieval eval (real embedder, no LLM) -> evals/results/retrieval.md
 	uv run pytest -m slow --no-cov
+	uv run python evals/retrieval_eval.py
 
-live-eval:  ## End-to-end eval against a running Ollama
+live-eval:  ## End-to-end eval against a running Ollama -> evals/results/live_eval.md
 	uv run pytest -m live --no-cov
+	uv run python evals/live_eval.py

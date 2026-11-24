@@ -24,3 +24,21 @@ jobs:
         run: uv run ruff format --check .
       - name: Unit tests
         run: uv run pytest
+
+  eval:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --locked
+      - name: Cache embedding model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-intfloat-multilingual-e5-small
+      - name: Retrieval eval (hit@k gate)
+        run: uv run python evals/retrieval_eval.py

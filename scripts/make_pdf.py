@@ -3,6 +3,8 @@
 Usage: uv run python scripts/make_pdf.py in.md out.pdf
 
 Pages in the input are separated by a line that reads exactly ``---page---``.
+A line that is a single HTML comment (``<!-- ... -->``) is skipped, so a source file can
+carry a note (for example its license) that does not appear in the PDF.
 Each source line is drawn on its own line of the PDF, so line breaks in the
 source (for example a hyphenated word split across two lines) are preserved.
 
@@ -72,11 +74,17 @@ def make_pdf(pages: list[str], out: Path) -> None:
 
 
 def split_pages(source: str) -> list[str]:
-    """Split markdown-like source text into pages on ``---page---`` lines."""
+    """Split markdown-like source text into pages on ``---page---`` lines.
+
+    Single-line HTML comments are dropped.
+    """
     pages: list[str] = []
     current: list[str] = []
     for line in source.splitlines():
-        if line.strip() == PAGE_SEPARATOR:
+        stripped = line.strip()
+        if stripped.startswith("<!--") and stripped.endswith("-->"):
+            continue
+        if stripped == PAGE_SEPARATOR:
             pages.append("\n".join(current))
             current = []
         else:

@@ -1,0 +1,28 @@
+{"question": "Bir programın bir işi öğrendiğini söyleyebilmek için hangi üç unsura bakılır?", "expected_pages": [1], "lang": "tr"}
+{"question": "Derin öğrenmenin 2012'den sonra hızla yükselmesini sağlayan etkenler nelerdir?", "expected_pages": [1], "lang": "tr"}
+{"question": "Why could the single-layer perceptron not solve the XOR problem, and who pointed this out?", "expected_pages": [1], "lang": "en"}
+{"question": "Sınıflandırma ile regresyon arasındaki fark nedir?", "expected_pages": [2], "lang": "tr"}
+{"question": "Öğrenme oranını çok yüksek seçersek eğitimde ne olur?", "expected_pages": [2], "lang": "tr"}
+{"question": "How does the k-nearest neighbors method decide the class of a new example?", "expected_pages": [2], "lang": "en"}
+{"question": "k-means algoritmasında merkezler nasıl güncellenir ve algoritma ne zaman durur?", "expected_pages": [3], "lang": "tr"}
+{"question": "Kaç küme kullanacağımıza karar vermek için hangi yöntemlerden yararlanabiliriz?", "expected_pages": [3], "lang": "tr"}
+{"question": "Yüksek boyutlu veriyi az sayıda bileşene indirmek için hangi teknik kullanılır?", "expected_pages": [3], "lang": "tr"}
+{"question": "Eğitim hatası düşükken test hatasının yüksek olması neyi gösterir?", "expected_pages": [4], "lang": "tr"}
+{"question": "Lasso ile ridge cezası arasındaki temel fark nedir?", "expected_pages": [4], "lang": "tr"}
+{"question": "What is the bias-variance trade-off?", "expected_pages": [4], "lang": "en"}
+{"question": "Dengesiz veri kümelerinde doğruluk metriği neden yanıltıcı olabilir?", "expected_pages": [5], "lang": "tr"}
+{"question": "Kanser taramasında hangi metriğe öncelik verilmeli ve neden?", "expected_pages": [5], "lang": "tr"}
+{"question": "What does an AUC value of 0.5 tell us about a classifier?", "expected_pages": [5], "lang": "en"}
+{"question": "Bir karar ağacı düğümde hangi bölünmeyi seçeceğine nasıl karar verir?", "expected_pages": [6], "lang": "tr"}
+{"question": "Rastgele ormanı sıradan torbalamadan ayıran ek rastgelelik nedir?", "expected_pages": [6], "lang": "tr"}
+{"question": "Boosting yönteminde ağaçlar nasıl eğitilir?", "expected_pages": [6], "lang": "tr"}
+{"question": "Aktivasyon fonksiyonu kullanılmasaydı bir sinir ağı neye dönüşürdü?", "expected_pages": [7], "lang": "tr"}
+{"question": "Geri yayılım sırasında gradyanlar nasıl hesaplanır?", "expected_pages": [7], "lang": "tr"}
+{"question": "Which network architecture is the foundation of today's large language models?", "expected_pages": [7], "lang": "en"}
+{"question": "Cinsiyet sütununu veriden silmek ayrımcılığı neden tamamen önlemez?", "expected_pages": [8], "lang": "tr"}
+{"question": "Fırsat eşitliği ile demografik eşitlik arasındaki fark nedir?", "expected_pages": [8], "lang": "tr"}
+{"question": "Give an example of sampling bias in a face recognition system.", "expected_pages": [8], "lang": "en"}
+{"question": "2018 Dünya Kupası finalini hangi takım kazandı?", "expected_pages": [], "lang": "tr"}
+{"question": "Mercimek çorbası nasıl yapılır?", "expected_pages": [], "lang": "tr"}
+{"question": "Should I buy Apple stock before the next earnings report?", "expected_pages": [], "lang": "en"}
+{"question": "Avustralya'nın başkenti neresidir?", "expected_pages": [], "lang": "tr"}
