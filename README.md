@@ -7,7 +7,7 @@ Upload your lecture PDFs, ask questions in Turkish or English, and get answers w
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 ![100% local](https://img.shields.io/badge/privacy-100%25%20local%2C%20no%20API%20keys-brightgreen)
 
-![Ask tab: a Turkish question answered from the notes, with a page chip](docs/images/ask.jpg)
+![Ask tab: asking a question about the notes and getting an answer with page citations](docs/images/ask.jpg)
 
 ## Features
 
@@ -17,9 +17,9 @@ Upload your lecture PDFs, ask questions in Turkish or English, and get answers w
 | **Says "not found"** | Questions the notes do not cover get "not found in your notes" with no citations. The model is not asked to guess. |
 | **Quizzes** | Generated from your notes: multiple choice (graded deterministically) and open-ended (graded 0-100 with feedback and page references). |
 | **Turkish-safe PDF reading** | Keeps ı, İ, ş, ğ, ç, ö, ü and repairs words hyphenated at line ends. Scanned PDFs are rejected with a clear message (no OCR). |
-| **Local-first** | Embeddings and the LLM run on your machine through Ollama. Notes and quizzes stay in `data/`. |
+| **Local-first** | Embeddings and the LLM run on your machine through Ollama. Notes and quizzes stay in `data/`. `.streamlit/config.toml` turns Streamlit's telemetry off and serves the UI on localhost only. |
 
-![Quiz tab: an open-ended answer graded 80/100 with feedback](docs/images/quiz.jpg)
+![Quiz tab: grading an open-ended answer, with score and feedback](docs/images/quiz.jpg)
 
 ## Why it's interesting
 
@@ -55,7 +55,7 @@ The commands below use Homebrew (macOS). On other systems, install `uv` and `oll
 
 ```bash
 brew install uv ollama                 # uv: Python and dependencies; ollama: local LLM
-ollama serve                           # skip if the Ollama app is already running
+brew services start ollama             # or run "ollama serve" in a second terminal
 ollama pull gemma2:9b                  # ~5.4 GB, once (make setup also pulls it)
 
 git clone https://github.com/AInancKaya/AI-study-Assistant.git
@@ -77,7 +77,7 @@ Open **http://localhost:8501**. The API docs are at http://localhost:8000/docs.
 docker compose up --build
 ```
 
-This starts the API (`:8000`) and the UI (`:8501`) from one image. **Ollama is not in the compose file.** It runs on the host, so start it (`ollama serve`) and pull the model first. The containers reach it at `host.docker.internal:11434`.
+This starts the API (`:8000`) and the UI (`:8501`) from one image. **Ollama is not in the compose file.** It runs on the host, so start it (`ollama serve`) and pull the model first. The containers reach it at `host.docker.internal:11434`. Both ports are published on `127.0.0.1` only. Docker keeps your notes and quizzes in the named volume `study-data` (not in `./data`); `docker compose down -v` deletes it.
 
 ### Switching models
 
@@ -141,7 +141,8 @@ Two evals, both on a committed sample: `evals/data/sample_notes.pdf` (8 pages of
 
 - **The sample is small**: one 8-page document and 28 questions. Treat the percentages as a smoke test, not a benchmark.
 - **The judge is the same local model** that writes the answers, so "grounded" is a self-check, not an independent audit.
-- **There is no clean similarity threshold.** The highest off-topic score (0.787) is above the lowest correct score (0.786), so `min_score` cannot separate the two. It is a cheap pre-filter that skips the LLM for clearly unrelated questions. Off-topic questions that pass it are rejected by the model's own `found = false`. Those are the 4/4 above; one of them (a lentil-soup question scoring 0.787) passed the gate and was rejected by the model.
+- **There is no clean similarity threshold.** The highest off-topic score (0.787) is above the lowest correct score (0.786), so `min_score` cannot separate the two. It is a cheap pre-filter that skips the LLM for clearly unrelated questions.
+- Three of the four off-topic questions scored below `min_score` and were answered "not found" without calling the LLM (about 0.1–0.5 s); the fourth (lentil soup, 0.787) passed the gate and the model returned `found = false`.
 - **Misses**: one retrieval miss (the bias-variance question, no correct page in the top 6, and the live pipeline answered "not found") and two answers the judge marked as not grounded (questions 16 and 17, both on decision trees and random forests).
 
 ## Testing
@@ -165,6 +166,7 @@ src/study_assistant/
   embeddings.py      Embedder protocol and the e5 implementation
   store.py           Chroma vector store (add, search, list, delete)
   llm.py             LLMClient protocol and Ollama client
+  prompts.py         System prompts and the numbered source block
   rag.py             ask(): retrieve, gate, generate, check citations
   quiz.py            Quiz generation and validation
   grading.py         Multiple choice (deterministic) and open-ended (LLM) grading

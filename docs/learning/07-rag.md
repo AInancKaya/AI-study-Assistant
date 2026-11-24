@@ -52,7 +52,7 @@ numarasıyla cevaplayan hattı anlatıyor.
 
 ## Nasıl çalışıyor?
 
-`ask` fonksiyonu RAG'in üç adımını sırayla uygular:
+`ask` fonksiyonu RAG'in adımlarını sırayla uygular:
 
 1. **Hazırlık:** soru `strip()` edilir; boşsa `ValueError` fırlatılır.
 2. **Retrieve (getir):** `store.search(question, k=k, doc_id=doc_id)` en benzer `k` parçayı
