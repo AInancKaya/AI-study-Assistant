@@ -47,6 +47,7 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 markers = [
     "slow: needs the real embedding model (deselected by default)",
     "live: needs a running Ollama server (deselected by default)",
