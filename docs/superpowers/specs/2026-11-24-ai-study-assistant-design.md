@@ -1,6 +1,6 @@
 # AI Study Assistant — Design
 
-Date: 2026-11-24 · Status: draft, awaiting approval
+Date: 2026-11-24 · Status: approved (run as one batch, local LLM, no API cost)
 
 ## 1. Intent and why
 
@@ -23,7 +23,8 @@ a backend API, a UI, tests and CI.
 ## 2. Goals, non-goals, anti-goals
 
 **Goals**
-- Runs locally with one command after setup; only an Anthropic API key needed.
+- Runs fully locally with one command after setup: **no API keys, no API cost**
+  (author decision 2026-11-24). LLM runs in Ollama on the author's machine.
 - Answers cite real pages from the uploaded PDF.
 - Clean, tested, typed code with CI passing on GitHub.
 - A README a recruiter understands in 30 seconds (screenshot/GIF, features,
@@ -46,9 +47,10 @@ a backend API, a UI, tests and CI.
 ## 3. Constraints
 
 - macOS Apple Silicon, author's main language is Python.
-- Free to run apart from Claude API usage (kept cheap with a Haiku-class model).
+- Zero running cost: no paid APIs at runtime. Must run on a 16 GB Apple M2
+  alongside the embedding model.
 - Permissive license (MIT); no AGPL dependencies.
-- Secrets only via `.env` (already git-ignored).
+- No secrets needed; config via optional `.env` (already git-ignored).
 
 ## 4. Approaches considered
 
@@ -60,9 +62,8 @@ a backend API, a UI, tests and CI.
 
 Within A, two smaller choices (from the Sonnet research report):
 - **Embeddings:** local `intfloat/multilingual-e5-small` (free, offline,
-  multilingual) as default, behind an `Embedder` interface; Voyage AI
-  (`voyage-4-lite`) as an optional cloud backend. Rejected: Voyage-only (extra
-  key and signup for every person trying the demo).
+  multilingual) behind an `Embedder` interface.
+  Rejected: Voyage AI (paid API, conflicts with the zero-cost goal).
 - **Vector store:** ChromaDB persistent client (stores page metadata natively).
   Rejected: FAISS (no metadata), LanceDB (fine, less familiar docs).
 
@@ -72,13 +73,19 @@ Within A, two smaller choices (from the Sonnet research report):
 `pytest-cov`; `pre-commit`; GitHub Actions CI (ruff + pytest, no API key);
 multi-stage `Dockerfile`; MIT license.
 
-**Libraries:** `anthropic`, `pypdf`, `sentence-transformers`, `chromadb`,
+**Libraries:** `ollama`, `pypdf`, `sentence-transformers`, `chromadb`,
 `fastapi`, `uvicorn`, `pydantic-settings`, `streamlit`, `httpx`.
 
-**LLM:** default model `claude-haiku-5-5` (cheap, fast), configurable to
-`claude-sonnet-5-5` via env. Model ids never hard-coded outside config.
-Quiz and grading use structured output (`client.messages.parse` with Pydantic
-models). Static system prompts use prompt caching.
+**LLM:** local via **Ollama** (`ollama` Python client, server at
+`http://localhost:11434`). Default model `gemma2:9b` (already installed on the
+author's machine, good Turkish, ~5.4 GB); configurable via `LLM_MODEL` env
+(README lists alternatives such as `qwen3:8b`, `gemma3:4b` for lower RAM).
+Quiz and grading use Ollama structured output (`format=<Pydantic JSON schema>`,
+`temperature=0`) and are validated with Pydantic, with one retry on invalid
+JSON. Context budget assumes an 8k-token model window. The `LLMClient`
+protocol keeps a cloud provider pluggable later, but none ships in v1.
+If Ollama is not running or the model is missing, the API returns a clear
+error telling the user what command to run.
 
 **Layout**
 ```
@@ -87,9 +94,9 @@ src/study_assistant/
   models.py          # Pydantic models: Chunk, Answer, Citation, Quiz, Grade
   ingest/pdf.py      # PDF -> pages (pypdf, NFC normalize, scanned-PDF check)
   ingest/chunking.py # pages -> chunks (per page, ~1500 chars, ~15% overlap)
-  embeddings.py      # Embedder protocol, E5Embedder, VoyageEmbedder
+  embeddings.py      # Embedder protocol, E5Embedder (local)
   store.py           # VectorStore over Chroma (add, search, list, delete docs)
-  llm.py             # LLMClient protocol + Claude implementation
+  llm.py             # LLMClient protocol + Ollama implementation
   rag.py             # ask(question) -> Answer with citations
   quiz.py            # generate_quiz(doc_id, n) -> Quiz
   grading.py         # grade(question, user_answer) -> Grade
@@ -116,6 +123,8 @@ reports retrieval hit@k and MRR; results go in the README.
 
 **Build process (author's request):**
 - Research → Sonnet subagent (done for stack choice).
+- Author chose: build in one batch (no pause per step); learning notes still
+  written per step.
 - Main skeleton (architecture, interfaces, RAG core, API) → Opus.
 - Simple code (helpers, small modules, tests boilerplate, UI widgets) → Haiku.
 - README → Haiku, reviewed by Opus.
@@ -135,12 +144,12 @@ reports retrieval hit@k and MRR; results go in the README.
   are stable and citations match the question. Grading free-form user-written
   questions is out of scope for v1.
 - **Quiz source material:** chunks are sampled evenly across the document
-  (cap ~20 chunks per quiz), so a 20-page handout and a 300-page course pack
+  (cap ~10 chunks per quiz, to fit an 8k context), so a 20-page handout and a 300-page course pack
   both work at bounded cost. Supported size target: up to ~300 pages.
 - **Evaluation:** two levels. (1) Retrieval hit@k / MRR — offline, runs in
-  CI. (2) Answer groundedness — a manual `evals/live_eval.py` run with a
-  Haiku judge over the gold set (cost: cents), results committed and shown
-  in the README. Never run in CI.
+  CI. (2) Answer groundedness — a manual `evals/live_eval.py` run with the
+  local Ollama model as judge over the gold set (free, needs Ollama), results
+  committed and shown in the README. Never run in CI.
 
 ## 6. Left to the builder
 
