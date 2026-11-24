@@ -21,3 +21,6 @@ data/uploads/
 .DS_Store
 .idea/
 .vscode/
+
+# Agent workspaces
+.superpowers/
