@@ -45,8 +45,9 @@ def count_pages(data: bytes) -> int:
 
 
 def normalize_text(raw: str) -> str:
-    """NFC-normalize, join line-end hyphenation and collapse runs of spaces."""
+    """NFC-normalize, drop soft hyphens, join line-end hyphenation and collapse spaces."""
     text = unicodedata.normalize("NFC", raw)
+    text = text.replace("\u00ad", "")  # soft hyphen (invisible break hint)
     text = _HYPHEN_BREAK.sub("", text)
     lines = (_SPACE_RUN.sub(" ", line).strip() for line in text.splitlines())
     return "\n".join(line for line in lines if line).strip()

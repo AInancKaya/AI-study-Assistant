@@ -70,5 +70,9 @@ def test_normalize_text_collapses_spaces() -> None:
     assert normalize_text("a    b\t\tc  \n  d") == "a b c\nd"
 
 
+def test_normalize_text_removes_soft_hyphen() -> None:
+    assert normalize_text("öğren\u00admek") == "öğrenmek"
+
+
 def test_normalize_text_joins_line_end_hyphen() -> None:
     assert normalize_text("öğrenme-\nnin önemi") == "öğrenmenin önemi"

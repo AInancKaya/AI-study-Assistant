@@ -135,7 +135,11 @@ def test_sends_schema_and_temperature_zero(stub: type[StubClient]) -> None:
 
 @pytest.mark.parametrize(
     "error",
-    [ConnectionError("Failed to connect to Ollama."), httpx.ConnectError("refused")],
+    [
+        ConnectionError("Failed to connect to Ollama."),
+        httpx.ConnectError("refused"),
+        httpx.ConnectTimeout("connect timed out"),
+    ],
 )
 def test_connection_error_maps_to_unavailable(stub: type[StubClient], error: Exception) -> None:
     stub.replies = [error]

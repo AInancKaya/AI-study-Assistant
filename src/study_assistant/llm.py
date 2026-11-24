@@ -94,7 +94,7 @@ class OllamaClient:
         """Run one Ollama request, translating library errors into ``LLMError`` subclasses."""
         try:
             return fn()
-        except (httpx.ConnectError, ConnectionError) as exc:
+        except (httpx.ConnectError, httpx.ConnectTimeout, ConnectionError) as exc:
             raise LLMUnavailableError(
                 f"Ollama is not running at {self.host}. Start it with: ollama serve"
             ) from exc
