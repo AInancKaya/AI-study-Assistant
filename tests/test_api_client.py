@@ -102,4 +102,63 @@ def test_unreachable_api_raises_status_zero() -> None:
         _client(httpx.MockTransport(handler)).documents()
 
     assert excinfo.value.status == 0
-    assert excinfo.value.detail == f"Cannot reach the API at {BASE_URL}. Run: make api"
+    assert excinfo.value.detail == (
+        f"Cannot reach the API at {BASE_URL}. Start it with: make start"
+    )
+
+
+def test_timeout_raises_status_zero_with_busy_hint() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("timed out", request=request)
+
+    client = ApiClient(BASE_URL, timeout=12.5, transport=httpx.MockTransport(handler))
+    with pytest.raises(ApiError) as excinfo:
+        client.ask("slow question")
+
+    assert excinfo.value.status == 0
+    assert excinfo.value.detail == (
+        "The API did not answer within 12.5s. The local model may still be busy; try again."
+    )
+
+
+def test_default_timeout_is_600_seconds() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("timed out", request=request)
+
+    with pytest.raises(ApiError) as excinfo:
+        _client(httpx.MockTransport(handler)).health()
+
+    assert "within 600s" in excinfo.value.detail
+
+
+def test_quiz_posts_counts() -> None:
+    seen, transport = _recorder(httpx.Response(200, json={"id": "quiz1", "questions": []}))
+
+    result = _client(transport).quiz("doc1", n_mc=3, n_open=2)
+
+    assert result == {"id": "quiz1", "questions": []}
+    request = seen[0]
+    assert request.method == "POST"
+    assert request.url.path == "/quiz"
+    assert json.loads(request.content) == {
+        "doc_id": "doc1",
+        "n_multiple_choice": 3,
+        "n_open_ended": 2,
+    }
+
+
+def test_grade_posts_body() -> None:
+    seen, transport = _recorder(httpx.Response(200, json={"score": 100}))
+
+    result = _client(transport).grade("quiz1", "q2", answer="Glikoz", selected_option=None)
+
+    assert result == {"score": 100}
+    request = seen[0]
+    assert request.method == "POST"
+    assert request.url.path == "/grade"
+    assert json.loads(request.content) == {
+        "quiz_id": "quiz1",
+        "question_id": "q2",
+        "answer": "Glikoz",
+        "selected_option": None,
+    }

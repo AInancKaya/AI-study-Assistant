@@ -12,7 +12,9 @@ modeli, vektör deposunu ya da Ollama'yı doğrudan çağırmaz; yalnızca HTTP 
   (`health`, `upload`, `documents`, `delete`, `ask`, `quiz`, `grade`). Metotlar
   ayrıştırılmış JSON döndürür.
 - **`ApiError`**: her hata tek bir istisna tipine çevrilir. `status` ve `detail`
-  alanları vardır. API'ye hiç ulaşılamazsa `status=0` ve "Run: make api" ipucu.
+  alanları vardır. API'ye hiç ulaşılamazsa `status=0` ve "Start it with: make start"
+  ipucu; API 600 saniyede (varsayılan zaman aşımı) cevap vermezse yine `status=0` ve
+  yerel modelin hâlâ meşgul olabileceğini söyleyen bir mesaj.
 - **`ui/app.py`**: tek sayfa, iki sekme.
   - Kenar çubuğu: LLM durumu, PDF yükleme, not listesi ve silme.
   - **Ask**: sohbet arayüzü (`st.chat_input` / `st.chat_message`). Cevaplar

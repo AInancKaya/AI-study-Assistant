@@ -9,7 +9,8 @@ from urllib.parse import quote
 
 import httpx
 
-UNREACHABLE_HINT = "Run: make api"
+UNREACHABLE_HINT = "Start it with: make start"
+BUSY_HINT = "The local model may still be busy; try again."
 
 
 class ApiError(Exception):
@@ -27,10 +28,11 @@ class ApiClient:
     def __init__(
         self,
         base_url: str,
-        timeout: float = 300,
+        timeout: float = 600,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
         self._base_url = base_url
+        self._timeout = timeout
         self._http = httpx.Client(
             base_url=base_url.rstrip("/"), timeout=timeout, transport=transport
         )
@@ -74,8 +76,11 @@ class ApiClient:
     def _request(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
         try:
             response = self._http.request(method, path, **kwargs)
-        except (httpx.ConnectError, httpx.TimeoutException) as exc:
+        except httpx.ConnectError as exc:
             detail = f"Cannot reach the API at {self._base_url}. {UNREACHABLE_HINT}"
+            raise ApiError(0, detail) from exc
+        except httpx.TimeoutException as exc:
+            detail = f"The API did not answer within {self._timeout:g}s. {BUSY_HINT}"
             raise ApiError(0, detail) from exc
         if not response.is_success:
             raise ApiError(response.status_code, _error_detail(response))

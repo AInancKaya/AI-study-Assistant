@@ -1,6 +1,6 @@
 """Streamlit front end: upload lecture PDFs, ask grounded questions, take quizzes.
 
-Run from the repo root with ``make ui`` (the API must be running: ``make api``).
+Run from the repo root with ``make start`` (API + UI), or ``make ui`` next to ``make api``.
 """
 
 import sys
@@ -19,8 +19,6 @@ import streamlit as st  # noqa: E402
 from study_assistant.config import get_settings  # noqa: E402
 from ui.api_client import ApiClient, ApiError  # noqa: E402
 
-Choice = tuple[str, str | None]  # (label, doc_id); doc_id None means "All notes"
-ALL_NOTES: Choice = ("All notes", None)
 VERDICT_LABELS = {
     "correct": "✅ Correct",
     "partially_correct": "🟡 Partially correct",
@@ -46,10 +44,6 @@ def _page_chip(citation: dict[str, Any]) -> None:
     st.badge(f"{citation['filename']} · p. {citation['page']}", icon="📄")
 
 
-def _document_choices(docs: list[dict[str, Any]]) -> list[Choice]:
-    return [(doc["filename"], doc["doc_id"]) for doc in docs]
-
-
 # --- Sidebar -----------------------------------------------------------------
 
 
@@ -57,20 +51,23 @@ def render_sidebar(client: ApiClient) -> list[dict[str, Any]]:
     """Show API status, upload and the document list. Returns the stored documents."""
     with st.sidebar:
         st.header("Status")
-        render_health(client)
+        if not render_health(client):
+            return []
         st.header("Your notes")
         render_upload(client)
         return render_documents(client)
 
 
-def render_health(client: ApiClient) -> None:
+def render_health(client: ApiClient) -> bool:
+    """Show the API/LLM status. Returns False when the API itself is unreachable."""
     health = _call(client.health)
     if health is None:
-        return
+        return False
     if health["llm_ok"]:
         st.success(f"Model ready: {health['model']}")
     else:
         st.error(health["llm_detail"])
+    return True
 
 
 def render_upload(client: ApiClient) -> None:
@@ -93,10 +90,12 @@ def render_documents(client: ApiClient) -> list[dict[str, Any]]:
 
 
 def _render_document_row(client: ApiClient, doc: dict[str, Any]) -> None:
-    name_col, button_col = st.columns([4, 1])
-    name_col.markdown(f"**{doc['filename']}**  \n{doc['pages']} pages")
-    if button_col.button("Delete", key=f"delete-{doc['doc_id']}"):
-        _delete_document(client, doc["doc_id"])
+    filename, doc_id = doc["filename"], doc["doc_id"]
+    st.markdown(f"**{filename}**  \n{doc['pages']} pages")
+    with st.popover("Delete", icon=":material/delete:", width="stretch"):
+        st.caption(f"Remove {filename} from your notes?")
+        if st.button("Delete for good", type="primary", key=f"delete-{doc_id}"):
+            _delete_document(client, doc_id)
 
 
 def _delete_document(client: ApiClient, doc_id: str) -> None:
@@ -105,6 +104,10 @@ def _delete_document(client: ApiClient, doc_id: str) -> None:
     except ApiError as exc:
         st.error(exc.detail)
         return
+    quiz = st.session_state.get("quiz")
+    if quiz is not None and quiz["doc_id"] == doc_id:
+        st.session_state.pop("quiz", None)
+        st.session_state.pop("grades", None)
     st.rerun()
 
 
@@ -115,28 +118,30 @@ def render_ask(client: ApiClient, docs: list[dict[str, Any]]) -> None:
     if not docs:
         st.info("Upload a lecture PDF in the sidebar to start asking questions.")
         return
-    choices = [ALL_NOTES, *_document_choices(docs)]
-    index = st.selectbox(
+    names = {doc["doc_id"]: doc["filename"] for doc in docs}
+    doc_id = st.selectbox(
         "Search in",
-        options=range(len(choices)),
-        format_func=lambda i: choices[i][0],
+        options=[None, *names],
+        format_func=lambda d: "All notes" if d is None else names[d],
         key="ask_scope",
     )
+    history = st.container()
     question = st.chat_input("Ask about your notes...")
     if question:
-        _answer_question(client, question, choices[index][1])
-    for message in st.session_state.get("messages", []):
-        _render_message(message)
+        _answer_question(client, question, doc_id)
+    with history:
+        for message in st.session_state.get("messages", []):
+            _render_message(message)
 
 
 def _answer_question(client: ApiClient, question: str, doc_id: str | None) -> None:
-    """Ask the API and append both the question and the answer to the chat history."""
-    messages = st.session_state.setdefault("messages", [])
-    messages.append({"role": "user", "content": question})
+    """Ask the API; on success append the question and the answer to the chat history."""
     with st.spinner("Searching your notes..."):
         answer = _call(lambda: client.ask(question, doc_id))
     if answer is not None:
-        messages.append({"role": "assistant", **answer})
+        st.session_state.setdefault("messages", []).extend(
+            [{"role": "user", "content": question}, {"role": "assistant", **answer}]
+        )
 
 
 def _render_message(message: dict[str, Any]) -> None:
@@ -159,17 +164,18 @@ def render_quiz(client: ApiClient, docs: list[dict[str, Any]]) -> None:
     if not docs:
         st.info("Upload a lecture PDF in the sidebar to build a quiz.")
         return
-    index = st.selectbox(
+    names = {doc["doc_id"]: doc["filename"] for doc in docs}
+    doc_id = st.selectbox(
         "Quiz from",
-        options=range(len(docs)),
-        format_func=lambda i: docs[i]["filename"],
+        options=list(names),
+        format_func=lambda d: names[d],
         key="quiz_doc",
     )
     col_mc, col_open = st.columns(2)
     n_mc = col_mc.slider("Multiple choice", 0, 5, 3, key="quiz_mc")
     n_open = col_open.slider("Open-ended", 0, 5, 2, key="quiz_open")
     if st.button("Generate quiz", type="primary", key="generate_quiz"):
-        _generate_quiz(client, docs[index]["doc_id"], n_mc, n_open)
+        _generate_quiz(client, doc_id, n_mc, n_open)
     quiz = st.session_state.get("quiz")
     if quiz is not None:
         _render_quiz(client, quiz)
@@ -202,18 +208,31 @@ def _render_question(client: ApiClient, quiz_id: str, question: dict[str, Any]) 
             index=None,
             key=f"mc-{key}",
             label_visibility="collapsed",
+            on_change=_clear_grade,
+            args=(question["id"],),
         )
         check = st.button("Check", key=f"check-{key}")
         if check:
             _check(client, quiz_id, question["id"], selected_option=answer)
     else:
-        answer = st.text_area("Your answer", key=f"open-{key}", label_visibility="collapsed")
+        answer = st.text_area(
+            "Your answer",
+            key=f"open-{key}",
+            label_visibility="collapsed",
+            on_change=_clear_grade,
+            args=(question["id"],),
+        )
         check = st.button("Check", key=f"check-{key}")
         if check:
             _check(client, quiz_id, question["id"], answer=answer)
     grade = st.session_state.get("grades", {}).get(question["id"])
     if grade is not None:
         _render_grade(grade, question)
+
+
+def _clear_grade(question_id: str) -> None:
+    """Forget a question's grade once its answer changes, so no stale result is shown."""
+    st.session_state.get("grades", {}).pop(question_id, None)
 
 
 def _check(
@@ -241,18 +260,25 @@ def _render_grade(grade: dict[str, Any], question: dict[str, Any]) -> None:
     st.progress(grade["score"] / 100, text=f"Score: {grade['score']}/100")
     st.markdown(f"**{VERDICT_LABELS.get(grade['verdict'], grade['verdict'])}**")
     st.write(grade["feedback"])
-    st.markdown(f"**Reference answer:** {_reference_text(grade, question)}")
+    if question["type"] == "multiple_choice":
+        why = _mc_explanation(grade, question)
+        if why:
+            st.markdown(f"**Why:** {why}")
+    else:
+        st.markdown(f"**Reference answer:** {grade['reference_answer']}")
     if grade["citations"]:
         st.caption("Where it is in your notes:")
         for citation in grade["citations"]:
             _page_chip(citation)
 
 
-def _reference_text(grade: dict[str, Any], question: dict[str, Any]) -> str:
+def _mc_explanation(grade: dict[str, Any], question: dict[str, Any]) -> str | None:
+    """The reference explanation, unless it only repeats the correct option's text."""
+    reference = grade["reference_answer"]
     correct = grade["correct_option"]
-    if question["type"] == "multiple_choice" and correct is not None:
-        return question["options"][correct]
-    return grade["reference_answer"]
+    if correct is not None and reference.strip() == question["options"][correct].strip():
+        return None
+    return reference
 
 
 # --- Page --------------------------------------------------------------------
