@@ -14,7 +14,7 @@ katmanını anlatıyor. Bu katman olmadan RAG'in arayacağı bir şey de olmaz.
   `ScannedPDFError` (metin katmanı olmayan, yani taranmış PDF). İkisi de
   `ValueError` alt sınıfı; API katmanı bunları 400 / 422 cevaplarına çevirecek.
 - **`make_doc_id`** içeriğin SHA-256 özetinin ilk 12 karakterini döndürür. Aynı dosya
-  her zaman aynı kimliği alır, böylece tekrar yüklemek çift kayıt üretmez.
+  her zaman aynı kimliği alır.
 - **`count_pages`** sayfa sayısını verir; yükleme sırasında 300 sayfa sınırını
   kontrol etmek için kullanılacak.
 - **Test fikstürleri:** `scripts/make_pdf.py` bir `.md` kaynağından reportlab ile PDF
@@ -55,8 +55,10 @@ Akış şöyle:
    - `_SPACE_RUN` ile ardışık boşluklar tek boşluğa iner.
    - Boş satırlar atılır.
 4. Metni boş olan sayfalar listeye girmez (`if (text := ...)`).
-5. Kalan sayfaların toplam harf/rakam sayısı `MIN_TEXT_CHARS` (20) altındaysa
-   `ScannedPDFError` atılır. Bu kontrol boş sayfalı PDF'i de yakalar.
+5. Sayfa başına boşluk olmayan karakter sayısı hesaplanır. Hiçbir sayfa en az
+   `MIN_TEXT_CHARS` (20) karaktere sahip değilse `ScannedPDFError` atılır. Kontrol
+   sayfa bazında yapılır: toplamda 20'yi geçen ama her sayfası kısa olan (sadece
+   "Sayfa 1", "Sayfa 2" gibi altbilgi) bir tarama da reddedilir.
 
 Testler `tests/test_pdf.py` içinde: Türkçe metin korunuyor mu, tire birleşiyor mu,
 kimlik kararlı mı, taranmış ve bozuk dosyalar doğru hatayı veriyor mu, sayfa sayısı
@@ -87,7 +89,7 @@ doğru mu.
    doğurabilir (ör. gerçek bir "iki-\nyönlü" ifadesi)?
 4. PyMuPDF yerine pypdf seçmenin bedeli nedir? Performans ve özellik açısından ne
    kaybedersin?
-5. `make_doc_id` içerik hash'i kullanıyor. Aynı dosyanın farklı adla yüklenmesi
-   durumunda ne olur, bunu istiyor musun?
+5. `make_doc_id` dosya adı yerine içerik hash'i kullanıyor. Bunun sebebi ve
+   sınırı nedir?
 6. Testlerde PDF'i neden kod içinde üretmek yerine repoya ikili dosya olarak
    ekledik? Bu kararın avantaj ve dezavantajları nelerdir?

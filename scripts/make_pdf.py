@@ -5,6 +5,11 @@ Usage: uv run python scripts/make_pdf.py in.md out.pdf
 Pages in the input are separated by a line that reads exactly ``---page---``.
 Each source line is drawn on its own line of the PDF, so line breaks in the
 source (for example a hyphenated word split across two lines) are preserved.
+
+Test fixtures that are not built from a .md source were generated with
+``make_pdf`` called from the repo root via ``uv run python``:
+``empty.pdf`` with ``make_pdf(["", ""], ...)`` and ``footer_only.pdf`` with
+``make_pdf([f"Sayfa {n}" for n in range(1, 6)], ...)``.
 """
 
 from __future__ import annotations
@@ -50,8 +55,7 @@ def _wrap_lines(page: str) -> list[str]:
 def make_pdf(pages: list[str], out: Path) -> None:
     """Write one PDF page per entry in ``pages``; an empty string gives a blank page."""
     _register_font()
-    width, height = A4
-    top = height - MARGIN
+    top = A4[1] - MARGIN
     c = canvas.Canvas(str(out), pagesize=A4)
     for page in pages:
         c.setFont(FONT_NAME, FONT_SIZE)

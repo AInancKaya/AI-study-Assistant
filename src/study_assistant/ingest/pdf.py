@@ -14,7 +14,7 @@ from pypdf import PdfReader
 
 from study_assistant.models import Page
 
-MIN_TEXT_CHARS = 20  # non-whitespace characters needed to call a PDF "has text"
+MIN_TEXT_CHARS = 20  # non-whitespace characters on one page needed to call it "has text"
 _HYPHEN_BREAK = re.compile(r"(?<=\w)-[ \t]*\n[ \t]*(?=\w)")
 _SPACE_RUN = re.compile(r"[ \t]+")
 
@@ -60,14 +60,22 @@ def _page_texts(data: bytes) -> list[str]:
         raise InvalidPDFError("Could not read the text of this PDF.") from exc
 
 
+def _nonspace_len(text: str) -> int:
+    return len("".join(text.split()))
+
+
 def extract_pages(data: bytes, filename: str) -> list[Page]:
-    """Return the text of each page (1-based), skipping pages without text."""
+    """Return the text of each page (1-based), skipping pages without text.
+
+    Raises ScannedPDFError unless at least one page has MIN_TEXT_CHARS or more
+    non-whitespace characters, so footer-only pages do not count as text.
+    """
     doc_id = make_doc_id(data)
     pages = [
         Page(doc_id=doc_id, filename=filename, page=number, text=text)
         for number, raw in enumerate(_page_texts(data), start=1)
         if (text := normalize_text(raw))
     ]
-    if sum(len("".join(p.text.split())) for p in pages) < MIN_TEXT_CHARS:
+    if not any(_nonspace_len(p.text) >= MIN_TEXT_CHARS for p in pages):
         raise ScannedPDFError("This PDF has no text layer; scanned PDFs are not supported.")
     return pages
