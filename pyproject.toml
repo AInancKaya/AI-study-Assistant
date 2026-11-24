@@ -1,0 +1,54 @@
+[project]
+name = "study-assistant"
+version = "0.1.0"
+description = "Local, zero-cost AI study assistant: RAG answers with page citations, quizzes and grading over your PDF lecture notes."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "AInancKaya", email = "184816491+AInancKaya@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "chromadb>=1.5.9",
+    "fastapi>=0.165.0",
+    "httpx>=0.28.1",
+    "ollama>=0.6.3",
+    "pydantic>=2.14.4",
+    "pydantic-settings>=2.16.3",
+    "pypdf>=7.1.1",
+    "python-multipart>=0.0.34",
+    "sentence-transformers>=6.3.0",
+    "streamlit>=1.67.0",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.9,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.7.0",
+    "pytest>=9.2.0",
+    "pytest-cov>=7.1.0",
+    "reportlab>=5.1.0",
+    "ruff>=0.17.6",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+# Design spec and plan contain illustrative snippets; do not reformat them.
+extend-exclude = ["docs/superpowers"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: needs the real embedding model (deselected by default)",
+    "live: needs a running Ollama server (deselected by default)",
+]
+addopts = "-m 'not slow and not live' --cov=study_assistant --cov-report=term-missing"
