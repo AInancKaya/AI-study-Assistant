@@ -16,6 +16,7 @@ build/
 # Local data
 data/chroma/
 data/uploads/
+data/quizzes.db
 
 # OS / editors
 .DS_Store

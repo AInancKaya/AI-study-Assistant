@@ -7,10 +7,10 @@ setup:  ## Install dependencies and pull the local LLM
 	ollama pull $(MODEL)
 
 api:  ## Start the FastAPI backend on :8000
-	uv run uvicorn study_assistant.api:app --reload --port 8000
+	uv run uvicorn study_assistant.api.main:create_app --factory --reload --port 8000
 
 ui:  ## Start the Streamlit UI
-	uv run streamlit run src/study_assistant/ui.py
+	uv run streamlit run ui/app.py
 
 run:  ## Start API and UI together (Ctrl+C stops both)
 	$(MAKE) -j2 api ui

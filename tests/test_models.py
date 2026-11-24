@@ -31,7 +31,7 @@ def test_quiz_public_hides_answers():
 
 def test_settings_env_override(monkeypatch):
     monkeypatch.setenv("STUDY_LLM_MODEL", "qwen3:8b")
-    assert Settings().llm_model == "qwen3:8b"
+    assert Settings(_env_file=None).llm_model == "qwen3:8b"
 
 
 def test_settings_defaults(monkeypatch):
