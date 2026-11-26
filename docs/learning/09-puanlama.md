@@ -16,12 +16,15 @@ ikisi farklı yollardan geçiyor: çoktan seçmeli sorular **kod** ile, açık u
   - Çoktan seçmeli dal: `selected_option` yoksa veya `0..len(options)-1` dışındaysa
     `ValueError`. Doğru şıkla eşleşirse 100, değilse 0 puan. LLM **çağrılmaz**.
   - Açık uçlu dal: boş cevap (`None`, `""` ya da sadece boşluk) için 0 puan ve
-    `"No answer given."` geri bildirimi, yine LLM yok. Dolu cevapta kaynak parçaları
+    `"Cevap verilmedi."` (İngilizce quizde `"No answer given."`) geri bildirimi, yine LLM yok. Dolu cevapta kaynak parçaları
     (`store.get_chunks(doc_id, source_pages)`) ve soru, referans cevap, öğrenci cevabı
     `build_grade_prompt` ile tek bir kullanıcı mesajına birleştirilir ve `GRADE_SYSTEM`
     ile `LLMGrade` şemasında LLM'e gönderilir.
   - Açık uçlu puan `max(0, min(100, score))` ile sınırlanır; etiketi **her zaman**
     `verdict_for` hesaplar, modelin söylediği etiket dikkate alınmaz.
+- **Dil algılama** (`prompts.detect_language`): Türkçe karakter (ç, ğ, ı, ö, ş, ü) ya da
+  "ve", "bir", "değil/degil" gibi sık kelimeler varsa metin Türkçe sayılır. Geri bildirim
+  öğrencinin cevabının dilinde yazılır; sabit mesajlar da quizin diline göre seçilir.
 - **`tests/test_grading.py`**: çoktan seçmeli doğru/yanlış, seçim eksikliği ve aralık
   dışı seçim, puan sınırlama, boş cevap, eşik değerleri, bilinmeyen soru ve prompt
   kurulumu için testler. LLM yerine `FakeLLM`, embedding yerine `HashEmbedder`
@@ -62,7 +65,8 @@ grade_answer(quiz, "q1", store, llm, selected_option=1)
   -> _citations                 # source_pages -> Citation listesi
   -> _grade_multiple_choice
        selected_option == correct_option ? 100 / 0
-       feedback: "Correct! The answer is: ..." / "Not quite. The correct answer is: ..."
+       feedback (Türkçe quiz): "Doğru! Cevap: ..." / "Tam değil. Doğru cevap: ..."
+       feedback (İngilizce quiz): "Correct! The answer is: ..." / "Not quite. The correct answer is: ..."
 ```
 
 Açık uçlu akış:
@@ -70,10 +74,11 @@ Açık uçlu akış:
 ```
 grade_answer(quiz, "q2", store, llm, answer="Glikoz enerjiye dönüşür.")
   -> text = answer.strip()
-  -> boşsa: Grade(score=0, verdict="incorrect", feedback="No answer given.")
+  -> boşsa: Grade(score=0, verdict="incorrect", feedback="Cevap verilmedi.")
   -> chunks = store.get_chunks(doc_id, source_pages)
   -> prompt = build_grade_prompt(question, chunks, text)
-       "[1] (dosya.pdf, s. 2)\n...\n\nQuestion: ...\nReference answer: ...\nStudent answer: ..."
+       "[1] (dosya.pdf, s. 2)\n...\n\nQuestion: ...\nReference answer: ...\nStudent answer: ...
+        \n\nWrite the feedback in Turkish."   # detect_language(cevap, soru, referans)
   -> llm.complete_json(GRADE_SYSTEM, prompt, LLMGrade)   # {"score": int, "feedback": str}
   -> score = clamp(0..100); verdict = verdict_for(score)
 ```

@@ -22,7 +22,7 @@ modeli, vektör deposunu ya da Ollama'yı doğrudan çağırmaz; yalnızca HTTP 
   - **Quiz**: quiz üret, çoktan seçmeli sorular için radyo düğmesi, açık uçlu
     sorular için metin alanı, her soru için "Check" düğmesi. Sonuçta puan,
     doğruluk etiketi, geri bildirim, referans cevap ve sayfa rozetleri çıkar.
-- **`tests/test_api_client.py`**: `httpx.MockTransport` ile 7 test. Ağ yok.
+- **`tests/test_api_client.py`**: `httpx.MockTransport` ile 11 test. Ağ yok.
 
 ## Neden?
 
